@@ -27,20 +27,10 @@ Button btn1(BTN1);
 Button btn2(BTN2);
 TM1637Display display(CLK, DIO);
 
-void click() {
-  Serial.println("click");
-}
-
-void hold() {
-  Serial.println("hold");
-}
-
 void setup() {
   Serial.begin(9600);
   display.setBrightness(0);
   display.clear();
-  // btn1.onClickRelease(click);
-  // btn1.onHold(hold);
 
   // Done!
   display.setSegments(SEG_DONE);
@@ -53,8 +43,12 @@ void setup() {
 void loop() {
   btn1.tick();
 
-  // if (btn1.press()) Serial.println("+");
-  if (btn1.click()) Serial.println(String("Click! ") + btn1.clicksCount());
-  if (btn1.hold()) Serial.println(String("Holding...") + btn1.clicksCount());
-  // if (btn1.release()) Serial.println("-");
+  if (btn1.click()) Serial.println(String("Click! Nr.") + btn1.clicksCount());
+  if (btn1.clicks()) Serial.println(String("Stopped clicking after ") + btn1.clicksCount() + " clicks.");
+  if (btn1.doubleClick()) Serial.println("Ohh, it was a double click!!");
+  if (btn1.hold()) {
+    Serial.print("Holding...");
+    if (btn1.clicksCount() > 1) Serial.println(String(" on ") + btn1.clicksCount() + " click.");
+    else Serial.println();
+  }
 }
