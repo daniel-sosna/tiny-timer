@@ -1,5 +1,4 @@
-#ifndef BUTTON_H
-#define BUTTON_H
+#pragma once
 
 #include <Arduino.h>
 
@@ -7,11 +6,17 @@
 #define BTN_CLICKS 300  // max time between clicks in ms
 #define BTN_HOLD 500    // hold detection time in ms
 
+//! Class to manage a button.
 class Button {
   public:
+    /**
+     * Construct a new Button object
+     * 
+     * @param pin Output pin connected to the button
+     */
     Button(uint8_t pin);
 
-    //! Updates the button
+    //! Must be called frequently in loop() to update button timing logic
     void tick();
 
     //! Simply, is the button currently pressed or not
@@ -45,18 +50,18 @@ class Button {
     bool hold();
 
   private:
-    uint32_t _tmr;
-    uint32_t _clicksTmr;
     uint8_t _pin;
-    uint8_t _clicksCount;
-    bool _state;
-    bool _clicking;
-    bool _holding;
-    bool _pressFlag;
-    bool _releaseFlag;
-    bool _clickFlag;
-    bool _clicksFlag;
-    bool _holdFlag;
-};
 
-#endif
+    uint32_t _tmr;
+    uint32_t _clicksTmr = 0;
+    uint8_t _clicksCount = 0;
+
+    bool _state = false;
+    bool _clicking = false;
+    bool _holding = false;
+    bool _pressFlag = false;
+    bool _releaseFlag = false;
+    bool _clickFlag = false;
+    bool _clicksFlag = false;
+    bool _holdFlag = false;
+};

@@ -4,16 +4,6 @@ Button::Button(uint8_t pin) {
   _pin = pin;
   pinMode(pin, INPUT_PULLUP);
   _tmr = millis();
-  _clicksCount = 0;
-  _state = false;
-  _clicking = false;
-  _holding = false;
-  _pressFlag = false;
-  _releaseFlag = false;
-  _clickFlag = false;
-  _clicksFlag = false;
-  _holdFlag = false;
-  _clicksTmr = 0;
 }
 
 void Button::tick() {
@@ -24,18 +14,20 @@ void Button::tick() {
   _clicksFlag = false;
   _holdFlag = false;
 
-  if (_state != reading && millis() - _tmr >= BTN_DEB) {
+  uint32_t now = millis();
+
+  if (_state != reading && now - _tmr >= BTN_DEB) {
     _state = reading;
-    _tmr = millis();
+    _tmr = now;
     if (_state) {
       _pressFlag = true;
       _clicking = true;
-      if (millis() - _clicksTmr <= BTN_CLICKS) {
+      if (now - _clicksTmr <= BTN_CLICKS) {
         _clicksCount += 1;
       } else {
         _clicksCount = 1;
       }
-      _clicksTmr = millis();
+      _clicksTmr = now;
     } else {
       _releaseFlag = true;
       if (!_holding) _clickFlag = true;
@@ -43,12 +35,12 @@ void Button::tick() {
     _holding = false;
   }
 
-  if (!_state && _clicking && millis() - _clicksTmr > BTN_CLICKS) {
+  if (!_state && _clicking && now - _clicksTmr > BTN_CLICKS) {
     _clicking = false;
     _clicksFlag = true;
   }
 
-  if (_state && !_holding && millis() - _tmr >= BTN_HOLD) {
+  if (_state && !_holding && now - _tmr >= BTN_HOLD) {
     _clicking = false;
     _holding = true;
     _holdFlag = true;
