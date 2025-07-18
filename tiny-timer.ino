@@ -1,5 +1,6 @@
 #include <TM1637Display.h>
 #include "Button.h"
+#include "Buzzer.h"
 
 // Display connection pins (Digital Pins)
 #define CLK 5
@@ -8,6 +9,9 @@
 // * buttons have to be connected to the GND.
 #define BTN1 3
 #define BTN2 4
+// Passive buzzer (piezo speaker) connection pin (Digital Pin)
+// * (optional) buzzer should be connected through a resistor (~100 Ohm).
+#define BUZ 8
 // 
 #define PERIOD1 2
 #define PERIOD2 1
@@ -39,9 +43,10 @@ enum Mode {
   TIMER_SETTINGS
 };
 
+TM1637Display display(CLK, DIO);
 Button btn1(BTN1);
 Button btn2(BTN2);
-TM1637Display display(CLK, DIO);
+Buzzer buzzer(BUZ);
 
 uint32_t tmr;
 enum Mode mode = MENU;
@@ -68,6 +73,8 @@ void runningLine(const uint8_t segments[], uint8_t length, uint16_t mdelay, uint
   }
 }
 
+bool buzzing = false;
+
 void timer(int32_t time) {
   bool isDots = time / 500 % 2 == 0; // or (time % 1000) < 500;
   time /= 1000;
@@ -84,10 +91,20 @@ void timer(int32_t time) {
     else display.showNumberDecEx(output, 64);
   }
   else if (time <= 60 * PERIOD2 && time > 0) {
+    if (time == 60 * PERIOD2) {
+      if (!buzzing){
+        buzzing = true;
+        buzzer.buzzRepeated(3, 100, 150);
+      }
+    } else buzzing = false;
     if (isDots) display.clear();
     else display.showNumberDecEx(output);
   }
   else {
+    if (!buzzing){
+      buzzing = true;
+      buzzer.buzz(1200, 2150);
+    }
     display.setSegments(SEG_DONE);
   }
 }
@@ -100,25 +117,16 @@ void setup() {
   // Print ready message
   runningLine(SEG_READY, 5, 150, 2, 1);
   display.clear();
-  delay(200);
+  buzzer.buzz(400);     // buzz once
+  delay(350);
 
-  tmr = millis();
 }
 
-// bool btn1Hold = false;
-// bool btn2Hold = false;
-//   if (btn1.state() && btn2.state()) {
-//     if (mode == MENU) mode = TIMER;
-//     else {
-//       mode = MENU;
-//       display.setSegments(SEG_DASH);
-//     }
-//   }
-
 void loop() {
-  // Update buttons
+  // Update buttons and buzzer
   btn1.tick();
   btn2.tick();
+  buzzer.tick();
 
   if ( mode == MENU ) {
     display.setSegments(SEG_DASH);
@@ -142,7 +150,6 @@ void loop() {
     display.showNumberDec(timerMinutes);
     if (btn2.hold()) {
       mode = TIMER;
-      tmr = millis() + timerMinutes * 60000;
     }
   }
   else if ( mode == TIMER ) {
