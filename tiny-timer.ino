@@ -8,6 +8,9 @@
 // * buttons have to be connected to the GND.
 #define BTN1 3
 #define BTN2 4
+// 
+#define PERIOD1 2
+#define PERIOD2 1
 
 const uint8_t SEG_DONE[] = {
   SEG_B | SEG_C | SEG_D | SEG_E | SEG_G,          // d
@@ -29,11 +32,23 @@ const uint8_t SEG_READY[] = {
   SEG_B | SEG_C | SEG_D | SEG_F | SEG_G,          // y
 };
 
+enum Mode {
+  MENU,
+  SETTINGS,
+  TIMER,
+  TIMER_SETTINGS
+};
+
 Button btn1(BTN1);
 Button btn2(BTN2);
 TM1637Display display(CLK, DIO);
 
 uint32_t tmr;
+enum Mode mode = MENU;
+int timerMinutes = 0;
+
+uint8_t data[] = { 0xff, 0xff, 0xff, 0xff };
+uint8_t blank[] = { 0x00, 0x80, 0x00, 0x00 };
 
 //! length >= 4
 void runningLine(const uint8_t segments[], uint8_t length, uint16_t mdelay, uint8_t startPos = 3, uint8_t endPos = 0) {
@@ -54,14 +69,27 @@ void runningLine(const uint8_t segments[], uint8_t length, uint16_t mdelay, uint
 }
 
 void timer(int32_t time) {
-  Serial.println(time);
+  bool isDots = time / 500 % 2 == 0; // or (time % 1000) < 500;
   time /= 1000;
   if (time >= 60*60) time /= 60;
   uint8_t hours = time / 60;
   uint8_t minutes = time % 60;
   uint16_t output = hours * 100 + minutes;
 
-  display.showNumberDecEx(output);
+  if (time > 60 * PERIOD1) {
+    display.showNumberDecEx(output, 64);
+  }
+  else if (time <= 60 * PERIOD1 && time > 60 * PERIOD2) {
+    if (isDots) display.showNumberDecEx(output);
+    else display.showNumberDecEx(output, 64);
+  }
+  else if (time <= 60 * PERIOD2 && time > 0) {
+    if (isDots) display.clear();
+    else display.showNumberDecEx(output);
+  }
+  else {
+    display.setSegments(SEG_DONE);
+  }
 }
 
 void setup() {
@@ -92,5 +120,33 @@ void loop() {
   btn1.tick();
   btn2.tick();
 
-  timer(millis() - tmr);
+  if ( mode == MENU ) {
+    display.setSegments(SEG_DASH);
+    if (btn1.singleClick()) mode = SETTINGS;
+    if (btn2.singleClick()) {
+      mode = TIMER_SETTINGS;
+      timerMinutes = 0;
+    }
+  }
+  else if ( mode == SETTINGS ) {
+    display.setSegments(SEG_DONE);
+    if (btn2.singleClick()) mode = MENU;
+  }
+  else if ( mode == TIMER_SETTINGS ) {
+    if (btn1.hold()) timerMinutes = 0;
+    if (btn1.click()) ++timerMinutes;
+    if (btn2.click()) {
+      if (timerMinutes < 30) timerMinutes += 5;
+      else timerMinutes += 10;
+    }
+    display.showNumberDec(timerMinutes);
+    if (btn2.hold()) {
+      mode = TIMER;
+      tmr = millis() + timerMinutes * 60000;
+    }
+  }
+  else if ( mode == TIMER ) {
+    timer(tmr - millis());
+    if (btn2.singleClick()) mode = MENU;
+  }
 }
