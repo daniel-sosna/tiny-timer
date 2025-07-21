@@ -1,4 +1,4 @@
-#include <TM1637Display.h>
+#include "Display.h"
 #include "Button.h"
 #include "Buzzer.h"
 
@@ -38,57 +38,47 @@ const uint8_t SEG_READY[] = {
 
 enum Mode {
   MENU,
-  SETTINGS,
+  MENU_SETTINGS,
   TIMER,
-  TIMER_SETTINGS
+  TIMER_SETTINGS,
+  STATISTICS
 };
 
-TM1637Display display(CLK, DIO);
+enum MenuOptions {
+  MAIN,
+  WORK,
+  REST,
+  STATS,
+  SETTINGS
+};
+const String menuOptions[] = {"----", "WORK", "REST", "STATS ", "SETTINGS "};
+int menuOptionsAmount = 5;
+
+Display display(CLK, DIO);
 Button btn1(BTN1);
 Button btn2(BTN2);
 Buzzer buzzer(BUZ);
 
 uint32_t tmr;
 enum Mode mode = MENU;
+enum MenuOptions menu = MAIN;
 int timerMinutes = 0;
 
 uint8_t data[] = { 0xff, 0xff, 0xff, 0xff };
 uint8_t blank[] = { 0x00, 0x80, 0x00, 0x00 };
-
-//! length >= 4
-void runningLine(const uint8_t segments[], uint8_t length, uint16_t mdelay, uint8_t startPos = 3, uint8_t endPos = 0) {
-  for (; startPos > 0; --startPos) {
-    display.setSegments(segments, 4 - startPos, startPos);
-    delay(mdelay);
-  }
-  for (int i = 0; i <= length - 4; ++i) {
-    Serial.println(segments[i]);
-    display.setSegments(segments + i);
-    delay(mdelay);
-  }
-  const uint8_t ending[] = {segments[length - 3], segments[length - 2], segments[length - 1], 0, 0, 0};
-  for (int i = 0; i < 3 - endPos; ++i) {
-    display.setSegments(ending + i);
-    delay(mdelay);
-  }
-}
 
 bool buzzing = false;
 
 void timer(int32_t time) {
   bool isDots = time / 500 % 2 == 0; // or (time % 1000) < 500;
   time /= 1000;
-  if (time >= 60*60) time /= 60;
-  uint8_t hours = time / 60;
-  uint8_t minutes = time % 60;
-  uint16_t output = hours * 100 + minutes;
 
   if (time > 60 * PERIOD1) {
-    display.showNumberDecEx(output, 64);
+    display.showTime(time, true);
   }
   else if (time <= 60 * PERIOD1 && time > 60 * PERIOD2) {
-    if (isDots) display.showNumberDecEx(output);
-    else display.showNumberDecEx(output, 64);
+    if (isDots) display.showTime(time);
+    else display.showTime(time, true);
   }
   else if (time <= 60 * PERIOD2 && time > 0) {
     if (time == 60 * PERIOD2) {
@@ -98,7 +88,7 @@ void timer(int32_t time) {
       }
     } else buzzing = false;
     if (isDots) display.clear();
-    else display.showNumberDecEx(output);
+    else display.showTime(time);
   }
   else {
     if (!buzzing){
@@ -115,28 +105,65 @@ void setup() {
   display.clear();
 
   // Print ready message
-  runningLine(SEG_READY, 5, 150, 2, 1);
+  display.startRunningLine(SEG_READY, 5, 200, 3, 1);
+  while (true) {
+    display.tick();
+    if (!display.isRunning()) break;
+  }
   display.clear();
-  buzzer.buzz(400);     // buzz once
+  buzzer.buzz(400); // buzz once
   delay(350);
 
+  display.showText(menuOptions[menu]);
 }
 
 void loop() {
-  // Update buttons and buzzer
+  // Update display, buttons and buzzer
+  display.tick();
   btn1.tick();
   btn2.tick();
   buzzer.tick();
 
   if ( mode == MENU ) {
-    display.setSegments(SEG_DASH);
-    if (btn1.singleClick()) mode = SETTINGS;
-    if (btn2.singleClick()) {
-      mode = TIMER_SETTINGS;
-      timerMinutes = 0;
+    if (btn2.click()) {
+      menu = (menu + 1 < menuOptionsAmount) ? menu + 1 : 0;
+      display.showText(menuOptions[menu]);
     }
+    if (btn2.hold()) menu = 0;
+
+    switch (menu) {
+      case MAIN:
+        break;
+
+      case WORK:
+        if (btn1.singleClick()) {
+          mode = TIMER_SETTINGS;
+          timerMinutes = 0;
+        }
+        break;
+
+      case REST:
+        if (btn1.singleClick()) {
+          mode = TIMER_SETTINGS;
+          timerMinutes = 0;
+        }
+        break;
+
+      case STATS:
+        if (btn1.singleClick()) mode = STATISTICS;
+        break;
+
+      case SETTINGS:
+        if (btn1.singleClick()) mode = MENU_SETTINGS;
+        break;
+
+      default:
+        break;
+    }
+
+    if (btn1.singleClick()) menu = 0;
   }
-  else if ( mode == SETTINGS ) {
+  else if ( mode == MENU_SETTINGS ) {
     display.setSegments(SEG_DONE);
     if (btn2.singleClick()) mode = MENU;
   }
@@ -150,6 +177,7 @@ void loop() {
     display.showNumberDec(timerMinutes);
     if (btn2.hold()) {
       mode = TIMER;
+      tmr = millis() + 1000 + timerMinutes * 60000;
     }
   }
   else if ( mode == TIMER ) {
