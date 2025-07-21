@@ -73,7 +73,7 @@ void Display::showText(const String& str) {
   clear();
   // Convert string to segment values
   const uint8_t chars[max(4, str.length())];
-  stringToArray(str, chars);
+  stringToSegmentsArray(str, chars);
   for (int i = 0; i < max(4, str.length()); ++i) Serial.println(chars[i]);
 
   if (str.length() <= 4) _display.setSegments(chars);

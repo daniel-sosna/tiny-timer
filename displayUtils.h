@@ -19,4 +19,4 @@ uint8_t encodeChar(uint8_t chr);
  * @param str Input string
  * @param chars Output array of segment values (must be pre-allocated)
  */
-void stringToArray(const String& str, uint8_t* chars);
+void stringToSegmentsArray(const String& str, uint8_t* chars);

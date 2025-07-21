@@ -19,8 +19,11 @@ uint8_t encodeChar(uint8_t chr) {
   return ASCIIto7Seg[chr - '-'];
 }
 
-void stringToArray(const String& str, uint8_t* buffer) {
-  for (int i = 0; i < str.length(); i++) {
-    buffer[i] = i < str.length() ? encodeChar(str[i]) : 0;
+void stringToSegmentsArray(const String& str, uint8_t* buffer) {
+  for (int i = 0; i < str.length(); ++i) {
+    buffer[i] = encodeChar(str[i]);
+  }
+  for (int i = str.length(); i < 4; ++i) {
+    buffer[i] = 0;
   }
 }
